@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ru" class="no-js">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta content='width=1024' name='viewport'>
+<title>Выбор ciphersuites для TLS и уязвимость Logjam. Опыт Яндекса / Блог компании Яндекс / Хабрахабр</title>
+
+  <meta name="description" content="Сейчас на фоне уязвимости Logjam все в индустрии в очередной раз обсуждают проблемы и особенности TLS. Я хочу воспользоваться этой возможностью, чтобы поговорить об одной из них, а именно — о..." />
+
+  <meta name="keywords" content="https, tls, ssl, ciphersuites" />
+
+  <meta property="fb:app_id" content="444736788986613" />
+<meta property="og:locale" content="ru_RU" />
+<meta property="og:type" content="article" />
+<meta property="fb:pages" content="472597926099084"/>
+<meta property="og:url" content="https://habrahabr.ru/company/yandex/blog/258673/" />
+<meta property="og:title" content="Выбор ciphersuites для TLS и уязвимость Logjam. Опыт Яндекса" />
+
+    <meta property="og:image" content="https://habrastorage.org/files/1b4/fb1/9d9/1b4fb19d9f0d411d897c18f9e3331de6.png" />
+    <link rel="image_src" href="https://habrastorage.org/files/1b4/fb1/9d9/1b4fb19d9f0d411d897c18f9e3331de6.png" />
+    <meta name="twitter:image" content="https://habrastorage.org/files/1b4/fb1/9d9/1b4fb19d9f0d411d897c18f9e3331de6.png">
+    <meta property="og:image" content="https://habrastorage.org/files/a62/f9f/04f/a62f9f04f97c4f35991425fc117810d0.png" />
+    <link rel="image_src" href="https://habrastorage.org/files/a62/f9f/04f/a62f9f04f97c4f35991425fc117810d0.png" />
+    <meta property="og:image" content="https://habrastorage.org/files/21d/6b9/48a/21d6b948acfa4303a31097aad237c017.png" />
+    <link rel="image_src" href="https://habrastorage.org/files/21d/6b9/48a/21d6b948acfa4303a31097aad237c017.png" />
+
+<meta property="og:description" content="Сейчас на фоне уязвимости Logjam все в индустрии в очередной раз обсуждают проблемы и особенности TLS. Я хочу воспользоваться этой возможностью, чтобы..." />
+<meta name="twitter:description" content="Сейчас на фоне уязвимости Logjam все в индустрии в очередной раз обсуждают проблемы и особенности TLS. Я хочу воспользоваться этой возможностью, чтобы...">
+<meta name="twitter:title" content="Выбор ciphersuites для TLS и уязвимость Logjam. Опыт Яндекса" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content="@habrahabr" />
+  <meta property="al:android:url" content="habrahabr://post/258673" />
+<meta property="al:android:app_name" content="Habrahabr" />
+<meta property="al:android:package" content="ru.habrahabr" />
+<meta property="al:windows_phone:url" content="habrahabr://post/258673" />
+<meta property="al:windows_phone:app_name" content="Habrahabr" />
+<meta property="al:windows_phone:app_id" content="460a6bd6-8955-470f-935e-9ea1726a6060" />
+  <link rel="canonical" href="https://habrahabr.ru/company/yandex/blog/258673/"/>
+  <link rel="alternate" media="only screen and (max-width: 640px)" href="https://m.habrahabr.ru/company/yandex/blog/258673/" >
+
+
+
+<meta name='yandex-verification' content='71593b225aeafc4e' />
+<meta name='referrer' content='unsafe-url' />
+<meta name="pocket-site-verification" content="ed24b2b9721edf0a282c5b4a3232c4" />
+
+
+<style type="text/css">
+  @font-face{font-family:'Fira Sans';font-style:normal;font-weight:500;src:url(/fonts/0/FiraSans/firaSans-medium.eot);src:local("Fira Sans Medium"),local("FiraSans-Medium"),url(/fonts/0/FiraSans/firaSans-medium.eot?#iefix) format("embedded-opentype"),url(/fonts/0/FiraSans/firaSans-medium.woff2) format("woff2"),url(/fonts/0/FiraSans/firaSans-medium.woff) format("woff"),url(/fonts/0/FiraSans/firaSans-medium.ttf) format("truetype")}
+</style>
+
+
+<link href="https://habracdn.net/habr/styles/1509726852/_build/global_main.css" rel="stylesheet" media="all" />
+
+
+
+
+<meta name='yandex-verification' content='67d46b975fa41645' />
+
+<meta content='Хабрахабр' name='apple-mobile-web-app-title'>
+
+<link rel="apple-touch-icon-precomposed" sizes="57x57" href="/images/favicons/apple-touch-icon-57x57.png" />
+<link rel="apple-touch-icon-precomposed" sizes="114x114" href="/images/favicons/apple-touch-icon-114x114.png" />
+<link rel="apple-touch-icon-precomposed" sizes="72x72" href="/images/favicons/apple-touch-icon-72x72.png" />
+<link rel="apple-touch-icon-precomposed" sizes="144x144" href="/images/favicons/apple-touch-icon-144x144.png" />
+<link rel="apple-touch-icon-precomposed" sizes="120x120" href="/images/favicons/apple-touch-icon-120x120.png" />
+<link rel="apple-touch-icon-precomposed" sizes="152x152" href="/images/favicons/apple-touch-icon-152x152.png" />
+<link rel="icon" type="image/png" href="/images/favicons/favicon-32x32.png" sizes="32x32" />
+<link rel="icon" type="image/png" href="/images/favicons/favicon-16x16.png" sizes="16x16" />
+<meta name="application-name" content="Хабрахабр"/>
+<meta name="msapplication-TileColor" content="#FFFFFF" />
+<meta name="msapplication-TileImage" content="mstile-144x144.png" />
+
+  <link title="Хабрахабр / Блог компании Яндекс / Комментарии к публикации «Выбор ciphersuites для TLS и уязвимость Logjam. Опыт Яндекса»" type="application/rss+xml" rel="alternate" href="https://habrahabr.ru/rss/post/258673/"/>
+
+<script>/* Font Face Observer v2.0.13 - © Bram Stein. License: BSD-3-Clause */(function(){'use strict';var f,g=[];function l(a){g.push(a);1==g.length&&f()}function m(){for(;g.length;)g[0](),g.shift()}f=function(){setTimeout(m)};function n(a){this.a=p;this.b=void 0;this.f=[];var b=this;try{a(function(a){q(b,a)},function(a){r(b,a)})}catch(c){r(b,c)}}var p=2;function t(a){return new n(function(b,c){c(a)})}function u(a){return new n(function(b){b(a)})}function q(a,b){if(a.a==p){if(b==a)throw new TypeError;var c=!1;try{var d=b&&b.then;if(null!=b&&"object"==typeof b&&"function"==typeof d){d.call(b,function(b){c||q(a,b);c=!0},function(b){c||r(a,b);c=!0});return}}catch(e){c||r(a,e);return}a.a=0;a.b=b;v(a)}}
+function r(a,b){if(a.a==p){if(b==a)throw new TypeError;a.a=1;a.b=b;v(a)}}function v(a){l(function(){if(a.a!=p)for(;a.f.length;){var b=a.f.shift(),c=b[0],d=b[1],e=b[2],b=b[3];try{0==a.a?"function"==typeof c?e(c.call(void 0,a.b)):e(a.b):1==a.a&&("function"==typeof d?e(d.call(void 0,a.b)):b(a.b))}catch(h){b(h)}}})}n.prototype.g=function(a){return this.c(void 0,a)};n.prototype.c=function(a,b){var c=this;return new n(function(d,e){c.f.push([a,b,d,e]);v(c)})};
+function w(a){return new n(function(b,c){function d(c){return function(d){h[c]=d;e+=1;e==a.length&&b(h)}}var e=0,h=[];0==a.length&&b(h);for(var k=0;k<a.length;k+=1)u(a[k]).c(d(k),c)})}function x(a){return new n(function(b,c){for(var d=0;d<a.length;d+=1)u(a[d]).c(b,c)})};window.Promise||(window.Promise=n,window.Promise.resolve=u,window.Promise.reject=t,window.Promise.race=x,window.Promise.all=w,window.Promise.prototype.then=n.prototype.c,window.Promise.prototype["catch"]=n.prototype.g);}());
+
+(function(){function l(a,b){document.addEventListener?a.addEventListener("scroll",b,!1):a.attachEvent("scroll",b)}function m(a){document.body?a():document.addEventListener?document.addEventListener("DOMContentLoaded",function c(){document.removeEventListener("DOMContentLoaded",c);a()}):document.attachEvent("onreadystatechange",function k(){if("interactive"==document.readyState||"complete"==document.readyState)document.detachEvent("onreadystatechange",k),a()})};function r(a){this.a=document.createElement("div");this.a.setAttribute("aria-hidden","true");this.a.appendChild(document.createTextNode(a));this.b=document.createElement("span");this.c=document.createElement("span");this.h=document.createElement("span");this.f=document.createElement("span");this.g=-1;this.b.style.cssText="max-width:none;display:inline-block;position:absolute;height:100%;width:100%;overflow:scroll;font-size:16px;";this.c.style.cssText="max-width:none;display:inline-block;position:absolute;height:100%;width:100%;overflow:scroll;font-size:16px;";
+this.f.style.cssText="max-width:none;display:inline-block;position:absolute;height:100%;width:100%;overflow:scroll;font-size:16px;";this.h.style.cssText="display:inline-block;width:200%;height:200%;font-size:16px;max-width:none;";this.b.appendChild(this.h);this.c.appendChild(this.f);this.a.appendChild(this.b);this.a.appendChild(this.c)}
+function t(a,b){a.a.style.cssText="max-width:none;min-width:20px;min-height:20px;display:inline-block;overflow:hidden;position:absolute;width:auto;margin:0;padding:0;top:-999px;white-space:nowrap;font-synthesis:none;font:"+b+";"}function y(a){var b=a.a.offsetWidth,c=b+100;a.f.style.width=c+"px";a.c.scrollLeft=c;a.b.scrollLeft=a.b.scrollWidth+100;return a.g!==b?(a.g=b,!0):!1}function z(a,b){function c(){var a=k;y(a)&&a.a.parentNode&&b(a.g)}var k=a;l(a.b,c);l(a.c,c);y(a)};function A(a,b){var c=b||{};this.family=a;this.style=c.style||"normal";this.weight=c.weight||"normal";this.stretch=c.stretch||"normal"}var B=null,C=null,E=null,F=null;function G(){if(null===C)if(J()&&/Apple/.test(window.navigator.vendor)){var a=/AppleWebKit\/([0-9]+)(?:\.([0-9]+))(?:\.([0-9]+))/.exec(window.navigator.userAgent);C=!!a&&603>parseInt(a[1],10)}else C=!1;return C}function J(){null===F&&(F=!!document.fonts);return F}
+function K(){if(null===E){var a=document.createElement("div");try{a.style.font="condensed 100px sans-serif"}catch(b){}E=""!==a.style.font}return E}function L(a,b){return[a.style,a.weight,K()?a.stretch:"","100px",b].join(" ")}
+A.prototype.load=function(a,b){var c=this,k=a||"BESbswy",q=0,D=b||3E3,H=(new Date).getTime();return new Promise(function(a,b){if(J()&&!G()){var M=new Promise(function(a,b){function e(){(new Date).getTime()-H>=D?b():document.fonts.load(L(c,'"'+c.family+'"'),k).then(function(c){1<=c.length?a():setTimeout(e,25)},function(){b()})}e()}),N=new Promise(function(a,c){q=setTimeout(c,D)});Promise.race([N,M]).then(function(){clearTimeout(q);a(c)},function(){b(c)})}else m(function(){function u(){var b;if(b=-1!=
+f&&-1!=g||-1!=f&&-1!=h||-1!=g&&-1!=h)(b=f!=g&&f!=h&&g!=h)||(null===B&&(b=/AppleWebKit\/([0-9]+)(?:\.([0-9]+))/.exec(window.navigator.userAgent),B=!!b&&(536>parseInt(b[1],10)||536===parseInt(b[1],10)&&11>=parseInt(b[2],10))),b=B&&(f==v&&g==v&&h==v||f==w&&g==w&&h==w||f==x&&g==x&&h==x)),b=!b;b&&(d.parentNode&&d.parentNode.removeChild(d),clearTimeout(q),a(c))}function I(){if((new Date).getTime()-H>=D)d.parentNode&&d.parentNode.removeChild(d),b(c);else{var a=document.hidden;if(!0===a||void 0===a)f=e.a.offsetWidth,
+g=n.a.offsetWidth,h=p.a.offsetWidth,u();q=setTimeout(I,50)}}var e=new r(k),n=new r(k),p=new r(k),f=-1,g=-1,h=-1,v=-1,w=-1,x=-1,d=document.createElement("div");d.dir="ltr";t(e,L(c,"sans-serif"));t(n,L(c,"serif"));t(p,L(c,"monospace"));d.appendChild(e.a);d.appendChild(n.a);d.appendChild(p.a);document.body.appendChild(d);v=e.a.offsetWidth;w=n.a.offsetWidth;x=p.a.offsetWidth;I();z(e,function(a){f=a;u()});t(e,L(c,'"'+c.family+'",sans-serif'));z(n,function(a){g=a;u()});t(n,L(c,'"'+c.family+'",serif'));
+z(p,function(a){h=a;u()});t(p,L(c,'"'+c.family+'",monospace'))})})};"object"===typeof module?module.exports=A:(window.FontFaceObserver=A,window.FontFaceObserver.prototype.load=A.prototype.load);}());
+
+(function( w ){
+if( w.document.documentElement.className.indexOf( "fonts-loaded" ) > -1 ){ return; }
+
+var html = document.documentElement;
+var FS500 = new w.FontFaceObserver("Fira Sans", { weight: 500 });
+
+FS500.load().then(function() {
+html.classList.add('fonts-loaded');
+sessionStorage.fontsLoaded = true;
+console.log('FS500-loaded');
+}).catch(function () {
+sessionStorage.fontsLoaded = false;
+console.log('FS500-unloaded');
+});
+
+if (sessionStorage.fontsLoaded) {
+html.classList.add('fonts-loaded');
+}
+}(this));
+</script>
+
+<script src="https://habracdn.net/habr/javascripts/1509726852/libs/jquery-1.8.3.min.js"></script>
+  
+  <script >var N = 5; var ar_duo1 = Math.floor(Math.random()*N+1);</script>
+  <script type="text/javascript" src="https://habracdn.net/habr/javascripts/1509726852/libs/adriver.core.2.js"></script>
+
+<script src="https://habracdn.net/habr/javascripts/1509726852/_parts/advertising.js"></script>
+<script type="text/javascript">
+  if (typeof adriver == 'undefined'){ var adb1 = 'yes';}
+
+    var user_type = 'guest';
+
+  var page_type = "publish_corp";
+
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-726094-1',  'auto');
+  ga('create', 'UA-726094-24', 'auto', {'name': 'HGM'});
+
+  ga('require', 'displayfeatures');
+  ga('set', 'dimension1', user_type); // user type - guest/readonly/habrauser
+
+
+  ga('set', 'dimension4', adb1);
+
+  ga('set', 'dimension5', page_type);
+
+
+   (function() {
+     var win = window;
+     var removeUtms = function(){
+       var location = win.location;
+       if (location.search.indexOf('utm_') != -1 && history.replaceState) {
+         history.replaceState({}, '', window.location.toString().replace(/(\&|\?)utm([_a-z0-9=-]+)/g, ""));
+       }
+     };
+     ga('send', 'pageview', { 'hitCallback': removeUtms });
+   })();
+
+  ga('HGM.set', 'dimension1', user_type);
+  ga('HGM.set', 'dimension2', "habrahabr");
+  ga('HGM.send', 'pageview');
+</script>
+
+<script>
+  var adcm_config ={
+    id:1034,
+    platformId: 34,
+    
+    tags: ['hub_crypto', 'hub_infosecurity', 'hub_algorithms', 'g_computer_security', 'g_network_security', 'g_programming'],
+    init: function () {
+      window.adcm.call();
+    }
+  };
+</script>
+<script src="https://tag.digitaltarget.ru/adcm.js" async></script>
+
+    
+  </head>
+
+  <body class="nl">
+    <div class="layout">
+      <div class="layout__row layout__row_services">
+        <div id="TMpanel">
+  <div class="container">
+    <div class="bmenu">
+      <a href="https://tmfeed.ru?utm_source=tm_habrahabr&utm_medium=tm_top_panel&utm_campaign=tm_promo">TM Feed</a>
+      <a href="https://habrahabr.ru?utm_source=tm_habrahabr&utm_medium=tm_top_panel&utm_campaign=tm_promo" class="current">Хабрахабр</a>
+      <a href="https://geektimes.ru?utm_source=tm_habrahabr&utm_medium=tm_top_panel&utm_campaign=tm_promo">Geektimes</a>
+      Тостертм
+      <a href="https://moikrug.ru?utm_source=tm_habrahabr&utm_medium=tm_top_panel&utm_campaign=tm_promo">Мой круг</a>
+      <a href="https://freelansim.ru?utm_source=tm_habrahabr&utm_medium=tm_top_panel&utm_campaign=tm_promo">Фрилансим</a>
+    </div>
+  </div>
+</div>
+
+      </div>
+
+      <div class="layout__row layout__row_navbar">
+        <div class="layout__cell">
+          <div class="main-navbar">
+  <div class="main-navbar__section main-navbar__section_left">
+    <a href="/" class="logo">
+      <svg class="icon-svg icon-svg_logo-habrahabr" width="181" height="32" viewBox="0 0 181 32" aria-hidden="true" aria-labelledby="title" version="1.1" role="img"><title>Хабрахабр</title><path d="M24.736 1.044h-8.582L12.53 6.168 8.91 1.044H.325l7.898 11.194L0 23.888h8.583l3.948-5.58 3.95 5.58h8.583l-8.256-11.65zM34.033 7.082c-3.133 0-6.036.88-8.256 2.61l2.87 3.428c1.502-.98 3.754-1.535 5.255-1.535 1.372 0 2.577.36 2.577 2.09v.49c-6.56 0-11.096 1.142-11.096 5.58 0 3.133 2.252 4.633 5.71 4.633 1.665 0 3.885-.913 5.386-2.61v2.12h6.07V12.696c0-4.765-4.73-5.613-8.516-5.613zm2.448 11.455c-.912 1.21-1.89 1.73-2.773 1.73-1.24 0-1.6-.654-1.6-1.274 0-1.533 1.96-2.087 4.373-2.087v1.63zM53.937 8.746c-1.47 0-3.818.62-4.863 1.894.294-2.448 2.023-3.655 5.32-4.308 1.534-.294 5.155-.98 7.18-1.402L60.463 0c-2.546.62-4.864 1.143-7.508 1.633-6.657 1.24-8.125 5.156-8.125 12.14 0 6.658 2.743 10.608 8.813 10.608 5.188 0 8.615-3.426 8.615-8.517 0-3.983-2.87-7.116-8.32-7.116zm-.39 10.28c-1.437 0-2.644-1.24-2.644-2.675s1.207-2.675 2.643-2.675c1.436 0 2.643 1.24 2.643 2.676s-1.208 2.677-2.644 2.677zM74.82 7.082c-1.664 0-3.46 1.044-4.21 2.61v-2.12h-6.07v22.974h6.07v-8.778c.752 1.567 2.546 2.61 4.21 2.61 4.765 0 7.343-3.883 7.343-8.648 0-4.764-2.577-8.647-7.343-8.647zm-1.957 11.552c-.88 0-1.697-.423-2.252-1.108v-3.622c.555-.653 1.373-1.076 2.253-1.076 1.567 0 2.905 1.273 2.905 2.905 0 1.564-1.338 2.902-2.905 2.902zM92.767 7.082c-3.133 0-6.038.88-8.256 2.61l2.872 3.428c1.5-.98 3.753-1.535 5.254-1.535 1.372 0 2.58.36 2.58 2.09v.49c-6.56 0-11.098 1.142-11.098 5.58 0 3.133 2.252 4.633 5.71 4.633 1.665 0 3.885-.913 5.387-2.61v2.12h6.068V12.696c0-4.765-4.732-5.613-8.516-5.613zm2.448 11.455c-.915 1.21-1.894 1.73-2.775 1.73-1.24 0-1.6-.654-1.6-1.274 0-1.533 1.96-2.087 4.375-2.087v1.63zM122.723 7.57h-7.703l-2.055 4.276-2.057-4.275h-7.7l5.58 7.997-5.874 8.32h7.702l2.35-4.306 2.35 4.308h7.702l-6.528-8.32zM132.967 7.082c-3.133 0-6.038.88-8.257 2.61l2.873 3.428c1.503-.98 3.753-1.535 5.255-1.535 1.37 0 2.58.36 2.58 2.09v.49c-6.56 0-11.098 1.142-11.098 5.58 0 3.133 2.252 4.633 5.71 4.633 1.665 0 3.885-.913 5.386-2.61v2.12h6.068V12.696c0-4.765-4.732-5.613-8.516-5.613zm2.448 11.455c-.913 1.21-1.894 1.73-2.775 1.73-1.24 0-1.6-.654-1.6-1.274 0-1.533 1.96-2.087 4.375-2.087v1.63zM152.87 8.746c-1.468 0-3.817.62-4.862 1.894.294-2.448 2.023-3.655 5.32-4.308 1.536-.294 5.157-.98 7.18-1.402L159.397 0c-2.546.62-4.864 1.143-7.506 1.633-6.657 1.24-8.125 5.156-8.125 12.14 0 6.658 2.742 10.608 8.81 10.608 5.19 0 8.617-3.426 8.617-8.517 0-3.983-2.873-7.116-8.323-7.116zm-.39 10.28c-1.437 0-2.643-1.24-2.643-2.675s1.206-2.675 2.643-2.675c1.436 0 2.643 1.24 2.643 2.676 0 1.437-1.207 2.677-2.643 2.677zM173.754 7.082c-1.664 0-3.46 1.044-4.21 2.61v-2.12h-6.07v22.974h6.07v-8.778c.75 1.567 2.546 2.61 4.21 2.61 4.764 0 7.343-3.883 7.343-8.648 0-4.764-2.58-8.647-7.343-8.647zm-1.958 11.552c-.88 0-1.697-.423-2.252-1.108v-3.622c.554-.653 1.37-1.076 2.252-1.076 1.565 0 2.905 1.273 2.905 2.905 0 1.564-1.34 2.902-2.904 2.902z"/></svg>
+    </a>
+    <ul class="nav-links" id="navbar-links">
+  <li class="nav-links__item">
+    <a href="/" class="nav-links__item-link ">Публикации</a>
+  </li>
+  <li class="nav-links__item">
+    <a href="/users/" class="nav-links__item-link ">Пользователи</a>
+  </li>
+  <li class="nav-links__item">
+    <a href="/hubs/" class="nav-links__item-link ">Хабы</a>
+  </li>
+  <li class="nav-links__item">
+    <a href="/companies/" class="nav-links__item-link ">Компании</a>
+  </li>
+  <li class="nav-links__item">
+    <a href="/sandbox/" class="nav-links__item-link ">Песочница</a>
+  </li>
+</ul>
+    <form action="/search/#h" method="get" class="search-form" id="search-form">
+  <!-- Я вернулся братиш, после стольких лет разлуки:) -->
+  <button type="button" class="btn btn_navbar_search icon-svg_search" id="search-form-btn" title="Поиск по сайту">
+    <svg class="icon-svg" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" version="1.1" role="img"><path d="M21.416 13.21c0 4.6-3.65 8.34-8.14 8.34S5.11 17.81 5.11 13.21c0-4.632 3.65-8.373 8.167-8.373 4.488 0 8.14 3.772 8.14 8.372zm1.945 7.083c1.407-2.055 2.155-4.57 2.155-7.084C25.515 6.277 20.04.665 13.277.665S1.04 6.278 1.04 13.21c0 6.93 5.475 12.542 12.237 12.542 2.454 0 4.907-.797 6.942-2.208l7.6 7.79 3.14-3.22-7.6-7.82z"/></svg>
+  </button>
+  <label class="search-form__field-wrapper">
+    <input type="text" name="q" class="search-form__field" id="search-form-field" placeholder="Поиск" tabindex="-1"/>
+    <button type="button" class="btn btn_search-close" id="search-form-clear" title="Закрыть">
+      <svg class="icon-svg icon-svg_navbar-close-search" width="31" height="32" viewBox="0 0 31 32" aria-hidden="true" version="1.1" role="img"><path d="M26.67 0L15.217 11.448 3.77 0 0 3.77l11.447 11.45L0 26.666l3.77 3.77L15.218 18.99l11.45 11.448 3.772-3.77-11.448-11.45L30.44 3.772z"/></svg>
+
+    </button>
+  </label>
+</form>
+
+  </div>
+
+  <div class="main-navbar__section main-navbar__section_right">
+      <a href="https://habrahabr.ru/auth/login/" id="login" class="btn btn_x-large btn_navbar_login">Войти</a>
+      <a href="https://habrahabr.ru/auth/register/" class="btn btn_x-large btn_navbar_registration">Регистрация</a>
+
+
+  </div>
+</div>
+
+        </div>
+      </div>
+
+      <div class="layout__row layout__row_body">
+        <div class="layout__cell layout__cell_body">
+          
+          
+
+
+
+      <div class="page-header__banner">
+      <img src="//habrastorage.org/getpro/habr/branding/907/a84/1d7/907a841d7f3392623972d244da8dae91.png" alt="company_banner"/>
+  </div>
+
+    <div class="page-header page-header_small page-header_bordered" id="company_1">
+      <div class="page-header_wrapper">
+        <div class="media-obj media-obj_company">
+    <a href="/company/yandex/" class="media-obj__image page-header__image">
+        <img src="//habrastorage.org/getpro/habr/company/415/df8/480/415df848002687412f820fde43582545.png" width="48" height="48" class="company-info__image-pic"/>
+    </a>
+
+  <div class="media-obj__body media-obj__body_page-header media-obj__body_page-header_branding">
+
+    <div class="page-header__info">
+        Яндекстм
+      <sup class="page-header__stats-value page-header__stats-value_branding" title="Рейтинг компании">551,68</sup>
+      <div class="page-header__info-desc">
+        Как мы делаем Яндекс
+      </div>
+    </div>
+  </div>
+</div>
+
+
+      </div>
+    </div>
+  <div class="column-wrapper js-sticky-wrapper">
+    <div class="content_left js-content_left">
+      <div class="company_post">
+        
+    <article class="post post_full" id="post_258673">
+  <div class="post__wrapper">
+    <header class="post__meta">
+      <a href="https://habrahabr.ru/users/ivlad/" class="post__user-info user-info" title="Автор публикации">
+          <img src="//habrastorage.org/getpro/habr/avatars/474/346/31a/47434631af3e933491a826148969a50b.jpg" width="24" height="24" class="user-info__image-pic user-info__image-pic_small">
+        <span class="user-info__nickname user-info__nickname_small">ivlad</span>
+      </a>
+
+      <span class="post__time">26 мая 2015 в 17:31</span>
+
+      
+    </header>
+
+    <h1 class="post__title post__title_full">
+      <span class="post__title-text">Выбор ciphersuites для TLS и уязвимость Logjam. Опыт Яндекса</span>
+    </h1>
+
+
+      <ul class="post__hubs post__hubs_full-post inline-list">
+          <li class="inline-list__item inline-list__item_hub">
+            <a href="https://habrahabr.ru/hub/crypto/" class="inline-list__item-link hub-link " title="Вы не подписаны на этот хаб" onclick="if (typeof ga === 'function') { ga('send', 'event', 'hub', 'post page', 'Криптография'); }">Криптография</a>, 
+          </li>
+          <li class="inline-list__item inline-list__item_hub">
+            <a href="https://habrahabr.ru/hub/infosecurity/" class="inline-list__item-link hub-link " title="Вы не подписаны на этот хаб" onclick="if (typeof ga === 'function') { ga('send', 'event', 'hub', 'post page', 'Информационная безопасность'); }">Информационная безопасность</a>, 
+          </li>
+          <li class="inline-list__item inline-list__item_hub">
+            <a href="https://habrahabr.ru/hub/algorithms/" class="inline-list__item-link hub-link " title="Вы не подписаны на этот хаб" onclick="if (typeof ga === 'function') { ga('send', 'event', 'hub', 'post page', 'Алгоритмы'); }">Алгоритмы</a>, 
+          </li>
+          <li class="inline-list__item inline-list__item_hub">
+            <a href="https://habrahabr.ru/company/yandex/" class="inline-list__item-link hub-link " title="Вы не подписаны на этот хаб" onclick="if (typeof ga === 'function') { ga('send', 'event', 'hub', 'post page', 'Блог компании Яндекс'); }">Блог компании Яндекс</a>
+          </li>
+      </ul>
+
+    <ul class="post__marks inline-list"></ul>
+
+
+    <div class="post__body post__body_full">
+      <div class="post__text post__text-html js-mediator-article">Сейчас на фоне <a href="http://habrahabr.ru/company/dsec/blog/258457/">уязвимости Logjam</a> все в индустрии в очередной раз обсуждают проблемы и особенности TLS. Я хочу воспользоваться этой возможностью, чтобы поговорить об одной из них, а именно — о настройке ciphersiutes. Мы уже не раз писали на Хабре о том, как внедряем шифрование трафика на сервисах Яндекса: например, об этом весьма подробно <a href="http://habrahabr.ru/company/yandex/blog/249771/">рассказывал</a> Эльдар  <a href="https://habrahabr.ru/users/kyprizel/" class="user_link">kyprizel</a> Заитов, но ciphersiutes были одной из вещей, которые в тот раз остались в основном за кадром. Кстати, хочу всех успокоить и сказать, что на серверах Яндекса никогда не использовался экспортный вариант алгоритма Диффи-Хеллмана.<br/>
+<br/>
+Итак, Ciphersuite — это совокупность алгоритмов, используемых в конкретной TLS–сессии. Сюда относятся:<br/>
+<br/>
+<ul>
+<li>алгоритм выработки сессионных ключей шифрования;</li>
+<li>алгоритм, используемый для аутентификации сервера;</li>
+<li>собственно симметричный алгоритм шифрования трафика;</li>
+<li>и, наконец, алгоритм контроля целостности (MAC, message authentication code).</li>
+</ul><br/>
+Для того чтобы понять, какова роль каждого из алгоритмов, давайте вкратце рассмотрим процесс инициализации TLS–соединения в применении к HTTPS (разумеется, TLS возможен и для других TCP и UDP протоколов, но сейчас мы это рассматривать не будем). За подробностями можно обратиться в <a href="https://tools.ietf.org/html/rfc5246">RFC5246</a>.<br/>
+<br/>
+<div style="text-align:center;"><img src="https://habrastorage.org/files/1b4/fb1/9d9/1b4fb19d9f0d411d897c18f9e3331de6.png" alt="image" width="750" height="500" /></div><br/>
+<br/>
+В TLS есть собственный механизм деления на сообщения, называемый record protocol. Каждое TLS-сообщение не обязано быть равно TCP-сегменту, оно может быть больше или меньше.<br/>
+<a name="habracut"></a><br/>
+TLS соединение начинает клиент — пересылкой сообщения ClientHello. Самая интересная для нас часть сообщения ClientHello — как раз список поддерживаемых клиентом ciphersuite. Также клиент посылает список известных ему эллиптических кривых.<br/>
+<br/>
+<img src="https://habrastorage.org/files/a62/f9f/04f/a62f9f04f97c4f35991425fc117810d0.png" alt="ClientHello" width="562"/><br/>
+<br/>
+В ответ сервер пересылает сообщение ServerHello, содержащее выбранный ciphersuite:<br/>
+ <br/>
+<img src="https://habrastorage.org/files/21d/6b9/48a/21d6b948acfa4303a31097aad237c017.png" alt="ServerHello" width="675" height="144"/><br/>
+ <br/>
+В данном случае это TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256. Этот вариант означает, что для генерации сеансовых ключей будет использован <a href="http://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman">алгоритм Диффи-Хеллмана на эллиптических кривых</a>, аутентификация сервера будет производится с помощью RSA, а в качестве алгоритма шифрования трафика будет использоваться AES с длиной ключа 128 бит в режиме <a href="http://en.wikipedia.org/wiki/Galois/Counter_Mode">GCM</a>. Внимательный читатель заметит, что GCM является <a href="http://en.wikipedia.org/wiki/Authenticated_encryption">AEAD-алгоритмом</a> и таким образом не требует дополнительной функции MAC. Зачем же она нужна? Ответ кроется в механизме выработки сеансовых ключей, но сначала давайте обсудим некоторые варианты каждого алгоритма в ciphersuite. С полным списком всех возможных вариантов можно ознакомиться <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml">на сайте IANA</a>.<br/>
+<br/>
+Итак, в качестве алгоритма выработки сеансовых ключей могут использоваться:<br/>
+<ul>
+<li>классический алгоритм Диффи-Хеллмана, он обозначается DH и DHE;</li>
+<li>вариант алгоритма Диффи-Хеллмана на эллиптических кривых, он обозначается ECDH и ECDHE;</li>
+<li>генерация случайного числа клиентом и последующее его шифрование на публичном ключе сервера, в реальных ситуациях почти всегда применяется RSA.</li>
+</ul><br/>
+Разница между вариантами DH без суффикса E и с суффиксом E состоит в эфемерности ключа. В случае DHE и ECDHE ключ действительно вырабатывается в ходе полноценного DH-обмена, где параметры шифрования не сохраняются и таким образом достигается свойство <a href="http://en.wikipedia.org/wiki/Forward_secrecy">PFS</a>. В ciphersuites DH и ECDH приватный ключ сервера (и клиента, если он есть) является приватным ключом для DH-обмена и таким образом свойство PFS не достигается.<br/>
+<br/>
+В качестве алгоритма аутентификации в практических реалиях используется почти исключительно RSA, ECDSA делает первые шаги, но мы надеемся, что он будет больше распространен.<br/>
+<br/>
+В качестве симметричных алгоритмов шифрования широко распространены AES с длиной ключа 128 и 256 бит в режимах CBC и GCM, RC4 и 3DES. Можно встретить ciphersuite с одиночным DES, <a href="http://en.wikipedia.org/wiki/Salsa20">CHACHA20</a> и даже NULL — этот означает, что никакого шифрования на самом деле применяться не будет.<br/>
+<br/>
+В качестве алгоритмов MAC встречаются MD5, SHA1, SHA256 и, редко, SHA384.<br/>
+<br/>
+Как было сказано выше, в случае алгоритма шифрования AES в режиме GCM контроль целостности обеспечивается собственно режимом шифрования. Поэтому необходимости в отдельной MAC–функции нет. В RFC на <a href="https://tools.ietf.org/html/rfc5246#section-5">TLS1.2</a> специально указано, что помимо собственно функции аутентификации MAC-алгоритм в ciphersuite выполняет еще и роль псевдослучайной функции (PRF). Когда общее между клиентом и сервером случайное число вырабатывается за счет того или иного варианта DH или просто генерируется клиентом, оно носит название pre-master key. После получения pre-master key на его основе (а также на основе случайных значений из сообщений ClientHello и ServerHello) вырабатывается <a href="https://tools.ietf.org/html/rfc5246#section-8.1">master key</a> путем применения PRF функции: <b>master_secret = PRF(pre_master_secret, «master secret», ClientHello.random + ServerHello.random)</b>. Впоследствии из master key с помощью той же функции PRF вычисляется весь необходимый ключевой материал: ключи для алгоритмов шифрования, ключи для MAC, инициализационные векторы.<br/>
+<br/>
+<h3>Ciphersuites в реальной жизни</h3><br/>
+Теперь, когда базовая теория понятна, давайте рассмотрим настройки ciphersuites на некоторых популярных сайтах. Для этого можно использовать <a href="https://www.ssllabs.com/ssltest/analyze.html">сканер SSLLabs</a>, хотя у нас в Яндексе для внутренних нужд используется написанный  <a href="https://habrahabr.ru/users/kyprizel/" class="user_link">kyprizel</a> инструмент. В принципе, можно использовать команду <a href="http://openssl.org/docs/apps/s_client.html">openssl s_client</a> с ключом -cipher или попробовать <a href="https://github.com/jvehent/cipherscan">cipherscan</a>, который по сути является оберткой на bash для вызова openssl.<br/>
+<br/>
+Для того что бы тестировать варианты ciphersuites локально, удобно использовать команду <a href="https://www.openssl.org/docs/apps/ciphers">openssl ciphers</a>, которая позволит посмотреть, во что именно превратится предлагаемый набор условий для ciphersuite.<br/>
+<br/>
+Итак, собственно, Яндекс. <a href="https://www.ssllabs.com/ssltest/analyze.html?d=www.yandex.ru&amp;s=213.180.204.3">Список поддерживаемых сервером ciphersuites</a> довольно велик:<br/>
+<br/>
+<pre><code class="bash">TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_AES_128_GCM_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_AES_256_GCM_SHA384
+TLS_RSA_WITH_AES_256_CBC_SHA256
+TLS_RSA_WITH_AES_256_CBC_SHA
+TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+TLS_RSA_WITH_3DES_EDE_CBC_SHA
+TLS_RSA_WITH_RC4_128_SHA (0x5)
+TLS_ECDHE_RSA_WITH_RC4_128_SHA</code></pre><br/>
+<br/>
+Сначала идут современные ciphersuites с выработкой pre-master ключа через ECDHE. Мы предпочитаем AES-128 в режиме GCM. Я лично не вижу большой пользы от AES256, но для yandex.ru мы сохранили этот набор шифров для более параноидальных пользователей. После различных вариантов ECDHE ciphersuites идут варианты с шифрованием AES, но без PFS. Такие варианты используются браузерами типа старой Opera (версии 12.x), и поэтому мы вынуждены их сохранить. <br/>
+<br/>
+Затем идет два варианта с шифрованием 3DES: их мы сохраняем в первую очередь для браузеров Internet Explorer на Windows XP с установленным SP3. Internet Explorer использует системную библиотеку <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/aa380123(v=vs.85).aspx">Schannel</a>, и в XP с SP3 наконец появилась поддержка <a href="https://en.wikipedia.org/wiki/Triple_DES">3DES</a> — устаревшего, но все еще устойчивого алгоритма шифрования. Наконец, для несчастных с Internet Explorer 6 на XP мы сохраняем шифры RC4 — других вариантов на этой платформе просто нет. При этом мы осознаем вероятность того, что этот шифр уязвим, поэтому доступен он только в случае хендшейка по протоколу SSLv3. Если клиент подключается с более современным протоколом — TLS 1.0, TLS 1.1 или TLS 1.2 — ciphersuite на основе RC4 не предлагается.<br/>
+<br/>
+Серверы поиска таким образом предлагают трейдофф между безопасностью для современных клиентов и необходимостью поддерживать старые.<br/>
+<br/>
+Иная ситуация на серверах Яндекс.Почты. Здесь, например, команда приняла продуктовое решение не поддерживать IE6 (даже в так называемой «легкой» верстке) и это отразилось в поддержке на уровне TLS:<br/>
+<br/>
+<pre><code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_AES_128_GCM_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_3DES_EDE_CBC_SHA</code></pre><br/>
+<br/>
+Логика сохранена той же, но трейдофф сдвинут в сторону большей безопасности и меньшей совместимости с устаревшими браузерами. Сначала — современные ciphersuite для TLS1.2: наш любимый ECDHE + AES128 в режиме GCM, затем то же самое, но в режиме CBC и, наконец, вариант с более слабым SHA1. Следующие три варианта — то же самое, но без PFS. Замыкает набор ciphersuite для IE8: 3DES в режиме CBC с SHA1 и без PFS. Очень хотим от него отказаться, поэтому в Почте мы начали <a href="https://blog.yandex.ru/post/96262/">кампанию по обновлению браузеров</a> пользователей. Если вы настраиваете компьютеры своим родителям, не поленитесь — установите современный браузер. Проделайте то же самое и в своей организации.<br/>
+<br/>
+Еще один вариант — Яндекс.Паспорт. Здесь мы пробовали сохранить классический DH, поскольку замечали ситуации, когда находились браузеры, которые все таки предпочитали его и, возможно, не имели поддержки ECDH (одно время это относилось к Firefox на RedHat Linux, где по юридическим соображениям отсутствовали протоколы с эллиптической криптографией). При этом задолго до публикации атаки Logjamтм мы понимали необходимость выравнивания длин ключей и бесполезность использования 1024-битного DH при 2048-битных RSA ключах в сертификатах. Поэтому <a href="https://www.ssllabs.com/ssltest/analyze.html?d=passport.yandex.ru&amp;s=77.88.21.24">на passport.yandex.ru доступен DHE, но 2048-битный</a>, сгенерированный специально для этого случая, и сервис не подвержен Logjam. Остальная логика такая же: сначала ECDH с AES в различных вариантах, потом DH с AES, потом AES без PFS и, наконец, fallback в 3DES без PFS.<br/>
+<br/>
+Давайте посмотрим и на «их нравы». Вот <a href="https://www.ssllabs.com/ssltest/analyze.html?d=www.gmail.com">пример с gmail.com</a>.<br/>
+<br/>
+<pre><code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA 
+TLS_ECDHE_RSA_WITH_RC4_128_SHA 
+TLS_RSA_WITH_AES_128_GCM_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_RC4_128_SHA
+TLS_RSA_WITH_RC4_128_MD5
+TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+TLS_RSA_WITH_AES_256_GCM_SHA384
+TLS_RSA_WITH_AES_256_CBC_SHA256
+TLS_RSA_WITH_AES_256_CBC_SHA
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+TLS_RSA_WITH_3DES_EDE_CBC_SHA</code></pre><br/>
+<br/>
+Мне в целом понятна логика приоритетов: сначала ECDH и AES. Обратите внимание, что Google решил попробовать шифр CHACHA20, о котором я писал выше. Мне кажется, что главная его цель — облегчить нагрузку на CPU (и, соответственно, расход энергии) в смартфонах на Android. Что и говорить, доминирование имеет свои преимущества — контролируя и сервис, и платформу можно делать недоступные другим вещи. Интересно, что Google использует свой форк OpenSSL под названием <a href="https://www.imperialviolet.org/2014/06/20/boringssl.html">BoringSSL</a>. Его полезное свойство — возможность задавать ciphersuites равных приоритетов. Так в этом случае (хотя ssllabs этого не показывает), TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 и TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 имеют равный приоритет и среди них клиент определяет, какой ciphersuite считает приоритетным.<br/>
+<br/>
+<a href="https://www.ssllabs.com/ssltest/analyze.html?d=twitter.com&amp;s=199.59.150.39">Вот twitter.com</a>:<br/>
+<br/>
+<pre><code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+TLS_RSA_WITH_AES_128_GCM_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_AES_256_CBC_SHA
+TLS_RSA_WITH_3DES_EDE_CBC_SHA</code></pre><br/>
+<br/>
+И снова понятная логика, очень похожая на нашу в Почте: сначала ECDHE, зачем AES без PFS и fallback на 3DES.<br/>
+<br/>
+<a href="https://www.ssllabs.com/ssltest/analyze.html?d=vk.com&amp;s=87.240.143.241&amp;hideResults=on">Логика на vk.com</a> мне непонятна. Кажется, тут просто взяли все шифры и выкинули из них MD5 и RC4. Думаю, похожий набор можно получить командой openssl ciphers 'ALL:!RC4:!MD5'. Шифр CAMELLIA? Are serious?<br/>
+<br/>
+<pre><code>TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
+TLS_DHE_RSA_WITH_AES_256_CBC_SHA
+TLS_DHE_RSA_WITH_AES_128_CBC_SHA
+TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
+TLS_RSA_WITH_AES_256_GCM_SHA384
+TLS_RSA_WITH_AES_128_GCM_SHA256
+TLS_RSA_WITH_AES_256_CBC_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA256
+TLS_RSA_WITH_AES_256_CBC_SHA
+TLS_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_3DES_EDE_CBC_SHA
+TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
+TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
+TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
+TLS_RSA_WITH_CAMELLIA_128_CBC_SHA</code></pre><br/>
+<br/>
+У mail.ru сначала ECDHE, потом DHE, потом — шифры без PFS, но опять же — CAMELLIA, SEED. Кажется, и <a href="https://www.ssllabs.com/ssltest/analyze.html?d=mail.ru&amp;s=217.69.139.200">тут никто не выбирал ciphersuites</a>, а положился на варианты, предлагаемые OpenSSL по умолчанию.<br/>
+<br/>
+Интересно, что до недавнего времени сервер nsa.gov имел очень слабый набор ciphersuites, самым лучшим вариантом там был RC4 без PFS, но сейчас <a href="https://www.ssllabs.com/ssltest/analyze.html?d=nsa.gov">ситуацию исправили</a> с той же самой логикой, что и у нас: ECDHE и AES, RSA и AES, fallback на 3DES. Аналогично выглядит <a href="https://www.ssllabs.com/ssltest/analyze.html?d=cia.gov&amp;s=23.6.99.36&amp;latest">https на сайте ЦРУ</a>. Забавно, что на сайтах ФСБ и СВР вообще не работает https.<br/>
+<br/>
+Впрочем, по моей личной оценке, сайтом с самыми плохими ciphersuites в интернете был сайт Госуслуг правительства Москвы login.mos.ru. В свое время он предлагал ciphersuite TLS_NULL_WITH_NULL_NULL — то есть без аутентификации и без шифрования. Впрочем, сейчас приняты меры: задержка на установку TLS соединения с sslabs.com установлен таким образом, что сканер отваливается по таймауту. Но и ciphersuites поправлены, хотя высшим приоритетом стоят RC4-MD5, RC4-SHA и 3DES-SHA, в списке можно найти ECDH — это можно проверить вручную командой openssl s_client с ключом -cipher.<br/>
+<br/>
+<h3>Рекомендации по выбору ciphersuite</h3><br/>
+Какие настройки можно порекомендовать обычному сайту? Вот такой рекомендованный конфиг nginx мы используем в Яндексе по умолчанию:<br/>
+ <br/>
+ <pre><code class="bash">ssl_prefer_server_ciphers on;
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+    ssl_ciphers kEECDH+AESGCM+AES128:kEECDH+AES128:kRSA+AESGCM+AES128:kRSA+AES128:!RC4:!aNULL:!eNULL:!MD5:!EXPORT:!LOW:!SEED:!CAMELLIA:!IDEA:!PSK:!SRP:!SSLv2;</code></pre><br/>
+<br/>
+Если необходима поддержка IE8 на XP, можно использовать такой набор, он включит 3DES:<br/>
+<pre><code class="bash">ssl_ciphers kEECDH+AESGCM+AES128:kEECDH+AES128:kRSA+AESGCM+AES128:kRSA+AES128:kRSA+3DES:!RC4:!aNULL:!eNULL:!MD5:!EXPORT:!LOW:!SEED:!CAMELLIA:!IDEA:!PSK:!SRP:!SSLv2;</code></pre><br/>
+<br/>
+Если нужна поддержка IE6 на XP, можно включить RC4, но в таких случаях мы рекомендуем нашим системным администраторам проконсультироваться со службой информационной безопасности, чтобы точно представлять свои риски. Я не уверен, что каким-то сайтам за пределами первой полусотни самых популярных в рунете действительно необходима такая поддержка.<br/>
+<br/>
+Кстати, найдете интересные настройки ciphersuite в интернете, пишите.</div>
+      <script id="js-mpf-mediator-init" data-counter="2820404">!function(e){function t(t,n){if(!(n in e)){for(var r,a=e.document,i=a.scripts,o=i.length;o--;)if(-1!==i[o].src.indexOf(t)){r=i[o];break}if(!r){r=a.createElement("script"),r.type="text/javascript",r.async=!0,r.defer=!0,r.src=t,r.charset="UTF-8";;var d=function(){var e=a.getElementsByTagName("script")[0];e.parentNode.insertBefore(r,e)};"[object Opera]"==e.opera?a.addEventListener?a.addEventListener("DOMContentLoaded",d,!1):e.attachEvent("onload",d):d()} } }t("//top-fwz1.mail.ru/js/code.js","_tmr"),t("//mediator.imgsmail.ru/2/mpf-mediator.min.js","_mediator")}(window);</script>
+    </div>
+
+    
+
+    <dl class="post__tags">
+      <dt class="post__tags-label">Метки:</dt>
+      <dd class="post__tags-list">    <ul class="inline-list inline-list_fav-tags js-post-tags">
+        <li class="inline-list__item inline-list__item_tag"><a href="https://habrahabr.ru/search/?q=%5Bhttps%5D&target_type=posts" rel="tag" class="inline-list__item-link post__tag  ">https</a></li>
+        <li class="inline-list__item inline-list__item_tag"><a href="https://habrahabr.ru/search/?q=%5Btls%5D&target_type=posts" rel="tag" class="inline-list__item-link post__tag  ">tls</a></li>
+        <li class="inline-list__item inline-list__item_tag"><a href="https://habrahabr.ru/search/?q=%5Bssl%5D&target_type=posts" rel="tag" class="inline-list__item-link post__tag  ">ssl</a></li>
+        <li class="inline-list__item inline-list__item_tag"><a href="https://habrahabr.ru/search/?q=%5Bciphersuites%5D&target_type=posts" rel="tag" class="inline-list__item-link post__tag  ">ciphersuites</a></li>
+    </ul>
+    <button type="button" class="btn btn_outline_grey btn_mini hidden js-fav-edit-link" data-type="2" data-id="258673" onclick="show_edit_tags(this)">Добавить метки</button>
+</dd>
+    </dl>
+  </div>
+</article>
+
+
+        <form action="/json/favorites/" method="post" class="form form_bordered form_favorites-tags hidden" id="edit_tags_form">
+  <input type="hidden" name="action" value="add" />
+  <input type="hidden" name="ti" value="0" />
+  <input type="hidden" name="tt" value="0" />
+
+  <button type="button" class="btn form__close-btn" onclick="closeForm(this)" title="Закрыть"><svg class="icon-svg icon-svg_navbar-close-search" width="31" height="32" viewBox="0 0 31 32" aria-hidden="true" version="1.1" role="img"><path d="M26.67 0L15.217 11.448 3.77 0 0 3.77l11.447 11.45L0 26.666l3.77 3.77L15.218 18.99l11.45 11.448 3.772-3.77-11.448-11.45L30.44 3.772z"/></svg>
+</button>
+
+  <fieldset class="form__fieldset">
+    <legend class="form__legend">Пометьте публикацию своими метками</legend>
+    <input type="text" name="tags_string" class="form__text-field" />
+    <span class="form__desc">Метки лучше разделять запятой. Например: <i>программирование, алгоритмы</i></span>
+  </fieldset>
+
+  <div class="form__footer">
+    <button type="submit" class="btn btn_x-large btn_outline_blue" disabled>Сохранить</button>
+  </div>
+</form>
+
+        <div class="post-additionals">
+            <ul class="post-stats post-stats_post js-user_" id="infopanel_post_258673">
+        <li class="post-stats__item post-stats__item_voting-wjt">
+          <div class="voting-wjt voting-wjt_post js-post-vote" data-id="258673" data-type="2">
+            <button type="button" class="btn voting-wjt__button" data-action="plus" onclick="posts_vote(this);" title="Голосовать могут только зарегистрированные пользователи " disabled><span class="icon-svg_arrow-up icon-svg_arrow-medium "><svg class="icon-svg" width="15" height="24" viewBox="0 0 15 24" aria-hidden="true" aria-labelledby="title" version="1.1" role="img"><path d="M4.5 24h6v-15h-6v15zm3-24l-7.5 9h15l-7.5-9z"/></svg>
+</span></button>
+
+            <span class="voting-wjt__counter voting-wjt__counter_positive  js-score" title="Общий рейтинг 45: &uarr;45 и &darr;0">+45</span>
+
+            <button type="button" class="btn voting-wjt__button" data-action="minus" onclick="posts_vote(this);" title="Голосовать могут только зарегистрированные пользователи  " disabled><span class="icon-svg_arrow-down icon-svg_arrow-medium "><svg class="icon-svg" width="15" height="24" viewBox="0 0 15 24" aria-hidden="true" aria-labelledby="title" version="1.1" role="img"><path d="M4.5 24h6v-15h-6v15zm3-24l-7.5 9h15l-7.5-9z"/></svg>
+</span></button>
+          </div>
+        </li>
+
+    <li class="post-stats__item post-stats__item_bookmark">
+      <button type="button" class="btn bookmark-btn bookmark-btn_post" data-type="2" data-id="258673" data-action="add" title="Только зарегистрированные пользователи могут добавлять публикации в закладки" onclick="posts_add_to_favorite(this);" disabled>
+        <span class="btn_inner"><span class="icon-svg_bookmark "><svg class="icon-svg" width="20" height="32" viewBox="0 0 20 32" aria-hidden="true" aria-labelledby="title" version="1.1" role="img"><path d="M10 25.645l10 6.355v-30c0-1.105-.895-2-2-2h-16c-1.105 0-2 .895-2 2v30l10-6.355z"/></svg>
+</span><span class="bookmark__counter js-favs_count" title="Количество пользователей, добавивших публикацию в закладки">176</span></span>
+      </button>
+    </li>
+
+    <li class="post-stats__item post-stats__item_views">
+      <div class="post-stats__views" title="Просмотры публикации">
+        <span class="icon-svg_views-count"><svg class="icon-svg" width="42" height="24" viewBox="0 0 42 24" aria-hidden="true" aria-labelledby="title" version="1.1" role="img"><path d="M21 0c13.776 0 21 10.357 21 12s-7.224 12-21 12-21-10.357-21-12 7.224-12 21-12zm0 21.232c5.156 0 9.334-4.133 9.334-9.232s-4.179-9.232-9.334-9.232c-5.155 0-9.335 4.133-9.335 9.232s4.179 9.232 9.335 9.232zm0-9.232c-.053 1.096 4.116 2.523 3.3 3.352-1.774 1.803-4.691 1.763-6.513-.088s-1.861-4.813-.087-6.616 4.691-1.763 6.513.088c.984 1-3.15 1.973-3.213 3.264z"/></svg>
+</span><span class="post-stats__views-count">24,5k</span>
+      </div>
+    </li>
+
+      <li class="post-stats__item post-stats__item_comments">
+          <a href="https://habrahabr.ru/company/yandex/blog/258673/#comments" class="post-stats__comments-link">
+            <span class="icon-svg_post-comments"><svg class="icon-svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" aria-labelledby="title" version="1.1" role="img"><path d="M1.5 0h21c.828 0 1.5.672 1.5 1.5v15c0 .828-.672 1.5-1.5 1.5h-21c-.828 0-1.5-.672-1.5-1.5v-15c0-.828.672-1.5 1.5-1.5zm12 18v6l-7.5-6h7.5z"/></svg>
+</span><span class="post-stats__comments-count" title="Читать комментарии">55</span>
+          </a>
+      </li>
+
+
+
+
+
+  </ul>
+
+            <form action="/json/complaints/add/" class="form form_bordered form_abuse hidden" method="post" id="abuse_form">
+  <input type="hidden" name="tt" value="2" />
+  <input type="hidden" name="ti" value="258673" />
+
+  <button type="button" class="btn form__close-btn" onclick="closeForm(this)"><svg class="icon-svg icon-svg_navbar-close-search" width="31" height="32" viewBox="0 0 31 32" aria-hidden="true" version="1.1" role="img"><path d="M26.67 0L15.217 11.448 3.77 0 0 3.77l11.447 11.45L0 26.666l3.77 3.77L15.218 18.99l11.45 11.448 3.772-3.77-11.448-11.45L30.44 3.772z"/></svg>
+</button>
+
+  <fieldset class="form__fieldset">
+    <legend class="form__legend">Нарушение</legend>
+    <input type="text" name="text" class="form__text-field" />
+    <span class="form__desc">Опишите суть нарушения</span>
+  </fieldset>
+
+  <div class="form__footer">
+    <button type="submit" class="btn btn_x-large btn_outline_blue" disabled>Отправить</button>
+  </div>
+</form>
+
+
+              <form action="/conversations/ivlad/" method="GET" class="form form_bordered form_admin-causes hidden" id="admin_causes">
+
+    <input type="hidden" name="moderation" value="258673">
+
+    <button type="button" class="btn form__close-btn" onclick="closeForm(this)"><svg class="icon-svg icon-svg_navbar-close-search" width="31" height="32" viewBox="0 0 31 32" aria-hidden="true" version="1.1" role="img"><path d="M26.67 0L15.217 11.448 3.77 0 0 3.77l11.447 11.45L0 26.666l3.77 3.77L15.218 18.99l11.45 11.448 3.772-3.77-11.448-11.45L30.44 3.772z"/></svg>
+</button>
+
+    <fieldset class="form__fieldset form__fieldset_admin-causes">
+      <legend class="form__legend">Выберите рекомендации для отправки автору:</legend>
+
+      <div class="checkbox-group_columns">
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="1"/>
+          <span class="checkbox__label">Указан только блог</span>
+        </label>
+
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="2"/>
+          <span class="checkbox__label">Орфографические ошибки</span>
+        </label>
+
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="3"/>
+          <span class="checkbox__label">Пунктуационные ошибки</span>
+        </label>
+
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="4"/>
+          <span class="checkbox__label">Отступы</span>
+        </label>
+
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="5"/>
+          <span class="checkbox__label">Текст-простыня</span>
+        </label>
+
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="6"/>
+          <span class="checkbox__label">Короткие предложения</span>
+        </label>
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="7"/>
+          <span class="checkbox__label">Смайлики</span>
+        </label>
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="8"/>
+          <span class="checkbox__label">Много форматирования</span>
+        </label>
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="9"/>
+          <span class="checkbox__label">Картинки</span>
+        </label>
+        <label class="checkbox checkbox_custom checkbox_recommendation-form">
+          <input type="checkbox" class="form__input form__input_checkbox" name="id[]" value="10"/>
+          Ссылкитм
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="form__footer">
+      <button type="submit" class="btn btn_x-large btn_outline_blue" disabled>Отправить</button>
+    </div>
+  </form>
+
+
+            <div class="company-info company-info_post-additional">
+              <div class="company-info__about">
+                <div class="media-obj media-obj_company">
+    <a href="/company/yandex/" class="media-obj__image page-header__image">
+        <img src="//habrastorage.org/getpro/habr/company/415/df8/480/415df848002687412f820fde43582545.png" width="48" height="48" class="company-info__image-pic"/>
+    </a>
+
+  <div class="media-obj__body media-obj__body_page-header media-obj__body_page-header_branding">
+
+    <div class="page-header__info">
+        Яндекстм
+      <sup class="page-header__stats-value page-header__stats-value_branding" title="Рейтинг компании">551,68</sup>
+      <div class="page-header__info-desc">
+        Как мы делаем Яндекс
+      </div>
+    </div>
+  </div>
+</div>
+
+
+              </div>
+              <div class="company-info__author">
+                <div class="user-info">
+    <div class="user-info__stats">
+  <div class="media-obj media-obj_user-info">
+    <a href="/users/ivlad/" class="media-obj__image" onclick="if (typeof ga === 'function') { ga('send', 'event', 'author_info_top', 'profile', 'ivlad');}">
+        <img src="//habrastorage.org/getpro/habr/avatars/474/346/31a/47434631af3e933491a826148969a50b.jpg" width="48" height="48" class="media-obj__image-pic media-obj__image-pic_user"/>
+    </a>
+
+    <div class="media-obj__body media-obj__body_user-info">
+          <div class="user-info__stats-item stacked-counter" title="96 голосов">
+            <div class="stacked-counter__value stacked-counter__value_green ">44,0</div>
+            <div class="stacked-counter__label">Карма</div>
+          </div>
+
+        <div class="user-info__stats-item stacked-counter stacked-counter_rating" title="Рейтинг пользователя">
+          <div class="stacked-counter__value stacked-counter__value_magenta">0,0</div>
+          <div class="stacked-counter__label">Рейтинг</div>
+        </div>
+
+        <a href="/users/ivlad/subscription/followers/" class="user-info__stats-item stacked-counter stacked-counter_subscribers" title="Количество подписчиков">
+          <div class="stacked-counter__value stacked-counter__value_blue">40</div>
+          <div class="stacked-counter__label">Подписчики</div>
+        </a>
+    </div>
+  </div>
+
+</div>
+
+
+  <div class="user-info__about">
+    <div class="user-info__links">
+      <a href="/users/ivlad/" class="user-info__fullname" onclick="if (typeof ga === 'function') { ga('send', 'event', 'author_info_top', 'profile', 'ivlad');}">Владимир Иванов</a>&nbsp;<a href="/users/ivlad/" class="user-info__nickname user-info__nickname_doggy" onclick="if (typeof ga === 'function') { ga('send', 'event', 'author_info_top', 'profile', 'ivlad');}">ivlad</a>
+      
+    </div>
+
+      <div class="user-info__specialization">Пользователь</div>
+  </div>
+
+</div>
+
+              </div>
+                  <ul class="company-info__contacts inline-list">
+          <li class="inline-list__item inline-list__item_contact-link">Githubтм</li>
+    </ul>
+
+            </div>
+            <div class="post-share">
+  <span class="post-share__title">Поделиться публикацией</span>
+  <ul class="post-share__buttons social-icons">
+    <li class="social-icons__item social-icons__item_post">
+      <a href="https://www.facebook.com/sharer/sharer.php?u=https://habrahabr.ru/company/yandex/blog/258673/"
+   
